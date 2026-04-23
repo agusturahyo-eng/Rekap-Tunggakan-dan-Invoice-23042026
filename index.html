@@ -11,7 +11,14 @@
 <style>
 body{background:#f4f6f9; font-family: sans-serif;}
 .clickable{cursor:pointer; user-select: none;}
-tr:hover{background:#eef3ff}
+/* Warna selang-seling kustom agar lebih kontras */
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+.table-striped tbody tr:nth-of-type(even) {
+    background-color: #ffffff;
+}
+tr:hover{background-color: #eef3ff !important;}
 .table-primary th:hover { background-color: #0d6efd !important; color: white; }
 .card.highlight { border: 2px solid #0d6efd; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
 .card-body p { margin-bottom: 2px; line-height: 1.2; font-size: 0.85rem; }
@@ -49,21 +56,10 @@ const parseIDR = (val) => {
   return parseFloat(clean) || 0;
 };
 
-/* --- LOGIKA BARU BERDASARKAN FOTO SPREADSHEET ANDA --- */
 function getStatusLunas(r) {
-  // Mencari kolom tgl_lunas (Kolom L di foto Anda)
   const valRaw = (r['tgl_lunas'] || r['Tgl Lunas'] || r['tgl lunas'] || "").toString().trim();
-  
-  // Jika isinya kosong atau mengandung kata "BELUM", maka status BELUM LUNAS
-  const isBelum = valRaw === "" || 
-                  valRaw === "-" || 
-                  valRaw === "0" || 
-                  valRaw.toUpperCase().includes("BELUM");
-  
-  return { 
-    isLunas: !isBelum, 
-    tgl: isBelum ? "BELUM LUNAS" : valRaw 
-  };
+  const isBelum = valRaw === "" || valRaw === "-" || valRaw === "0" || valRaw.toUpperCase().includes("BELUM");
+  return { isLunas: !isBelum, tgl: isBelum ? "BELUM LUNAS" : valRaw };
 }
 
 function loadSheet(k) {
@@ -117,7 +113,7 @@ function renderPetugas() {
   const sorted = Object.keys(map).sort().map(p => ({name: p, ...map[p]}));
 
   let h = `<div class="table-responsive">
-    <table class="table table-bordered table-sm align-middle" style="font-size: 0.8rem; text-align: center;">
+    <table class="table table-bordered table-striped table-sm align-middle" style="font-size: 0.8rem; text-align: center;">
       <thead class="table-dark">
         <tr>
           <th rowspan="2" class="align-middle">Petugas</th>
@@ -163,7 +159,7 @@ function openPetugas(p) {
     byDate[t].j++; byDate[t].rp += parseIDR(r.jumlah); 
   });
   
-  let h = `<h6 class="text-primary fw-bold">Petugas: ${p}</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead class="table-success"><tr><th>Tanggal Lunas</th><th>Plg</th><th>Total Rp</th></tr></thead><tbody>`;
+  let h = `<h6 class="text-primary fw-bold">Petugas: ${p}</h6><div class="table-responsive"><table class="table table-sm table-bordered table-striped"><thead class="table-success"><tr><th>Tanggal Lunas</th><th>Plg</th><th>Total Rp</th></tr></thead><tbody>`;
   if (belum.length > 0) h += `<tr class="clickable" onclick="detailBelum()"><td>BELUM LUNAS</td><td>${belum.length}</td><td class="text-end">${belum.reduce((a,b)=>a+parseIDR(b.jumlah),0).toLocaleString("id-ID")}</td></tr>`;
   Object.keys(byDate).sort((a,b) => b.localeCompare(a)).forEach(t => { h += `<tr class="clickable" onclick="detailLunas('${t}')"><td>${t}</td><td>${byDate[t].j}</td><td class="text-end">${byDate[t].rp.toLocaleString("id-ID")}</td></tr>`; });
   view.innerHTML = h + `</tbody></table></div>`;
@@ -179,7 +175,7 @@ function openGlobal() {
     byDate[t] = byDate[t] || {j: 0, rp: 0}; 
     byDate[t].j++; byDate[t].rp += parseIDR(r.jumlah); 
   });
-  let h = `<h6 class="text-primary fw-bold">Semua Petugas</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead class="table-success"><tr><th>Tanggal Lunas</th><th>Plg</th><th>Total Rp</th></tr></thead><tbody>`;
+  let h = `<h6 class="text-primary fw-bold">Semua Petugas</h6><div class="table-responsive"><table class="table table-sm table-bordered table-striped"><thead class="table-success"><tr><th>Tanggal Lunas</th><th>Plg</th><th>Total Rp</th></tr></thead><tbody>`;
   if (belum.length > 0) h += `<tr class="clickable" onclick="detailBelum()"><td>BELUM LUNAS</td><td>${belum.length}</td><td class="text-end">${belum.reduce((a,b)=>a+parseIDR(b.jumlah),0).toLocaleString("id-ID")}</td></tr>`;
   Object.keys(byDate).sort((a,b) => b.localeCompare(a)).forEach(t => { h += `<tr class="clickable" onclick="detailGlobalLunas('${t}')"><td>${t}</td><td>${byDate[t].j}</td><td class="text-end">${byDate[t].rp.toLocaleString("id-ID")}</td></tr>`; });
   view.innerHTML = h + `</tbody></table></div>`;
@@ -210,7 +206,7 @@ function drawTable(data) {
     drawTable(sorted);
   };
   const icon = (k) => sortState.key === k ? (sortState.asc ? ' ▲' : ' ▼') : '';
-  let h = `<div class="table-responsive"><table class="table table-sm table-bordered" style="font-size:0.7rem"><thead class="table-primary text-nowrap"><tr><th class="clickable" onclick="triggerSort('idpel')">IDPEL${icon('idpel')}</th><th class="clickable" onclick="triggerSort('nama')">Nama${icon('nama')}</th><th class="clickable" onclick="triggerSort('koked')">Koked${icon('koked')}</th><th class="clickable" onclick="triggerSort('jumlah')">Rp${icon('jumlah')}</th></tr></thead><tbody>`;
+  let h = `<div class="table-responsive"><table class="table table-sm table-bordered table-striped" style="font-size:0.7rem"><thead class="table-primary text-nowrap"><tr><th class="clickable" onclick="triggerSort('idpel')">IDPEL${icon('idpel')}</th><th class="clickable" onclick="triggerSort('nama')">Nama${icon('nama')}</th><th class="clickable" onclick="triggerSort('koked')">Koked${icon('koked')}</th><th class="clickable" onclick="triggerSort('jumlah')">Rp${icon('jumlah')}</th></tr></thead><tbody>`;
   data.forEach(r => { h += `<tr class="clickable" onclick="showCardsByData('${r.idpel}')"><td>${r.idpel}</td><td>${r.nama}</td><td>${r.koked}</td><td class="text-end">${parseIDR(r.jumlah).toLocaleString("id-ID")}</td></tr>`; });
   document.getElementById("tableArea").innerHTML = h + `</tbody></table></div>`;
 }
@@ -235,7 +231,7 @@ function showCardsByData(id) {
   if(id) setTimeout(() => document.getElementById(`card-${id}`).scrollIntoView({behavior:'smooth', block:'center'}), 100);
 }
 
-/* --- WA & PDF TOOLS (ASLI) --- */
+/* WA & PDF (Fungsi tetap sama) */
 const getFullText = (r, type) => {
   const date = new Date();
   const nBulanFull = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
