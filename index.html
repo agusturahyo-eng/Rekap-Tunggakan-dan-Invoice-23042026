@@ -43,7 +43,7 @@ const SHEETS = {
 let allData = [], currentDetail = [], currentTitle = "", currentPetugas = "Semua", currentSheet = "lembar1";
 let historyStack = [], sortState = { key: null, asc: true };
 
-// Fungsi bantu membersihkan angka
+// Parsing Angka
 const parseIDR = (val) => {
   if (!val) return 0;
   let clean = String(val).replace(/[^0-9,-]/g, '').split(',')[0];
@@ -51,23 +51,25 @@ const parseIDR = (val) => {
 };
 
 const parseDate = (str) => {
-  if (!str || str === "-") return new Date(0);
-  const parts = str.split('-');
+  if (!str || str === "-" || str === "0") return new Date(0);
+  const parts = String(str).split('-');
+  if(parts.length < 3) return new Date(0);
   return new Date(parts[2], parts[1] - 1, parts[0]);
 };
 
-/* --- LOGIKA DETEKSI LUNAS YANG DIKEMBANGKAN --- */
+/* --- LOGIKA DETEKSI LUNAS SUPER KUAT --- */
 function getStatusLunas(r) {
-  // Mencari nama kolom yang mengandung kata 'lunas' secara otomatis
+  // Mencari nama kolom yang mengandung kata 'lunas' tanpa peduli spasi atau huruf besar/kecil
   const keys = Object.keys(r);
-  const keyLunas = keys.find(k => k.toLowerCase().includes('lunas'));
+  const keyLunas = keys.find(k => k.toLowerCase().replace(/[^a-z]/g, '').includes('lunas'));
   
   if (!keyLunas) return { isLunas: false, tgl: null };
   
-  const value = String(r[keyLunas]).trim();
-  // Kriteria LUNAS: tidak kosong, bukan "-", bukan "0", bukan "N"
-  const lunas = (value !== "" && value !== "-" && value !== "0" && value.toLowerCase() !== "n");
-  return { isLunas: lunas, tgl: value };
+  const valRaw = String(r[keyLunas]).trim();
+  // Kriteria LUNAS: tidak kosong, bukan "-", bukan "0", bukan "N", bukan "n"
+  const lunas = (valRaw !== "" && valRaw !== "-" && valRaw !== "0" && valRaw.toLowerCase() !== "n" && valRaw.toLowerCase() !== "null");
+  
+  return { isLunas: lunas, tgl: valRaw };
 }
 
 function loadSheet(k) {
@@ -76,11 +78,11 @@ function loadSheet(k) {
   document.getElementById("tab-" + k).classList.add("active");
   view.innerHTML = "<p class='text-center'>Memuat data...</p>";
   fetch(SHEETS[k].url).then(r => r.text()).then(csv => {
-    // Memastikan header dibersihkan dari spasi liar
+    // Normalisasi Header: Menghapus spasi dan karakter aneh agar pembacaan kolom stabil
     allData = Papa.parse(csv, {
       header: true, 
       skipEmptyLines: true,
-      transformHeader: h => h.trim() 
+      transformHeader: h => h.trim()
     }).data;
     renderPetugas();
   });
@@ -92,7 +94,7 @@ backBtn.onclick = () => {
   if (historyStack.length === 0) { backBtn.classList.add("d-none"); renderPetugas(); }
 };
 
-/* ================= FUNGSI TEKS WA ASLI ANDA ================= */
+/* ================= FUNGSI TEKS WA (SESUAI SCRIPT ASLI) ================= */
 const getFullText = (r, type) => {
   const date = new Date();
   const nBulanFull = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"];
@@ -129,11 +131,13 @@ const getFullText = (r, type) => {
       );
     }
     return { tgl: `${date.getDate()} ${blnIniFull} ${date.getFullYear()}`, blnIniFull };
+
   } else {
     let periode = (currentSheet === 'lembar1') ? `${blnIni} s/d ${blnIni} (1 LEMBAR)` : `${blnLalu} s/d ${blnIni} (2 LEMBAR)`;
     const body1 = "Dengan ini diberitahukan dengan hormat bahwa pada hari ini aliran listrik di rumah/alamat seperti tersebut diatas terpaksa diputus untuk sementara karena rekening listrik belum dilunasi pada waktu yang telah ditetapkan.";
     const body2 = "Penyambungan kembali akan dilakukan pada setiap hari jam kerja apabila rekening serta biaya keterlambatan dilunasi di tempat penerimaan pembayaran rekening listrik, kantor pos, atau bank yang ditunjuk oleh PLN.";
     const body3 = "Apabila dalam jangka waktu 60 hari terhitung sejak dilakukan pemutusan sementara tunggakan belum dilunasi, maka instalasi milik PLN akan dibongkar, dan penyambungan kembali dapat dilaksanakan setelah Saudara menyelesaikan Biaya Penyambungan yang diperlakukan sebagai sambungan baru serta tetap diwajibkan membayar tagihan listrik yang belum dilunasi beserta dendanya.";
+
     if (type === 'WA') {
       return encodeURIComponent("*PT. PLN (PERSERO) UID JAWA TENGAH DAN DIY*\n" +
         "*UP3 KLATEN*\n" +
@@ -165,15 +169,17 @@ const getFullText = (r, type) => {
   }
 };
 
-/* ================= FUNGSI PDF ASLI ANDA ================= */
+/* ================= FUNGSI PDF (SESUAI SCRIPT ASLI) ================= */
 function createPDF(r) {
   const doc = new jsPDF();
   const info = getFullText(r, 'PDF');
+  
   if (currentSheet === 'invoice') {
     doc.setFontSize(9);
     doc.text("PT. PLN (PERSERO) UID JAWA TENGAH DAN DIY", 15, 15);
     doc.text(`Petugas : ${r.petugas || '-'}`, 150, 15);
-    doc.text("UP3 KLATEN", 15, 19); doc.text("ULP TULUNG", 15, 23);
+    doc.text("UP3 KLATEN", 15, 19); 
+    doc.text("ULP TULUNG", 15, 23);
     doc.setFont(undefined, 'bold'); doc.setFontSize(11);
     doc.text("PEMBERITAHUAN TAGIHAN LISTRIK", 105, 33, {align: "center"});
     doc.setFont(undefined, 'normal'); doc.setFontSize(9);
@@ -229,7 +235,7 @@ function createPDF(r) {
   doc.save(`${currentSheet === 'invoice' ? 'Tagihan' : 'TUL'}_${r.idpel}.pdf`);
 }
 
-/* ================= REKAP UTAMA ================= */
+/* ================= LOGIKA REKAP ================= */
 function renderPetugas() {
   const map = {}; 
   let totalSemua = { j_belum: 0, rp_belum: 0, j_lunas: 0, rp_lunas: 0, j_total: 0, rp_total: 0 };
